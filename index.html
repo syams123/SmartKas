@@ -1,740 +1,875 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartKas — Manajemen Keuangan & Cashflow Modern</title>
-    <!-- Tailwind CSS -->
+    <title>SmartKas — Personal Cashflow & Balance Manager</title>
+
+    <!-- Early Dark Mode Script (Mencegah kedipan layar/FOUC saat halaman dimuat) -->
+    <script>
+        (function () {
+            try {
+                const savedTheme = localStorage.getItem('smartkas_theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            } catch (e) {}
+        })();
+    </script>
+
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     fontFamily: {
                         sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
                     },
                     colors: {
-                        brand: {
+                        emerald: {
                             50: '#ecfdf5',
                             100: '#d1fae5',
                             200: '#a7f3d0',
+                            300: '#6ee7b7',
+                            400: '#34d399',
                             500: '#10b981',
                             600: '#059669',
                             700: '#047857',
                             800: '#065f46',
                             900: '#064e3b',
+                            950: '#022c22',
                         }
                     }
                 }
             }
         }
     </script>
+
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
     <style>
-        /* Kustomisasi scrollbar halus & utilitas tambahan */
         body {
-            background-color: #f8fafc;
-            color: #0f172a;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-variant-numeric: tabular-nums;
         }
         .hero-gradient {
-            background: linear-gradient(135deg, #064e3b 0%, #065f46 45%, #0f172a 100%);
+            background: linear-gradient(135deg, #059669 0%, #0d9488 50%, #065f46 100%);
         }
-        /* Animasi masuk modal & toast */
-        @keyframes slideUp {
-            from { transform: translateY(24px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+        .dark .hero-gradient {
+            background: linear-gradient(135deg, #065f46 0%, #0f766e 50%, #022c22 100%);
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        @keyframes modalPop {
+            0% { opacity: 0; transform: scale(0.95) translateY(8px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
         }
-        .animate-slide-up {
-            animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        .animate-modal-pop {
+            animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        .animate-fade-in {
-            animation: fadeIn 0.2s ease-out forwards;
+        @keyframes toastSlide {
+            0% { opacity: 0; transform: translateY(16px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
-        /* Sembunyikan scrollbar horizontal pada filter pills */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
+        .animate-toast {
+            animation: toastSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        /* Kustomisasi date picker icon di dark mode */
+        .dark input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            opacity: 0.7;
         }
     </style>
 </head>
-<body class="min-h-screen pb-24 sm:pb-12 selection:bg-emerald-200 selection:text-emerald-900">
+<body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200 selection:bg-emerald-500 selection:text-white">
 
-    <!-- Top Navigation Bar -->
-    <header class="sticky top-0 z-30 glass-card border-b border-slate-200/80">
-        <div class="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-sm shadow-emerald-600/20">
+    <!-- ==================== HEADER STICKY ==================== -->
+    <header class="sticky top-0 z-30 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl hero-gradient flex items-center justify-center text-white shadow-md shadow-emerald-600/20 shrink-0">
                     <i data-lucide="wallet" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <h1 class="text-lg font-extrabold tracking-tight text-slate-900 leading-none">Smart<span class="text-emerald-600">Kas</span></h1>
-                    <p class="text-[11px] font-medium text-slate-500 mt-0.5">Cek Keuangan & Cashflow</p>
+                    <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
+                        Smart<span class="text-emerald-600 dark:text-emerald-400">Kas</span>
+                    </h1>
+                    <p class="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                        Personal Cashflow & Balance Manager
+                    </p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
-                <button onclick="openBackupModal()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 active:scale-95 rounded-xl transition" title="Export / Import Backup Data">
-                    <i data-lucide="database-backup" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <!-- Header Action Buttons -->
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <!-- Toggle Dark Mode -->
+                <button type="button" onclick="toggleDarkMode()" id="themeToggleBtn" aria-label="Ganti Tema"
+                    class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-amber-300 transition active:scale-95"
+                    title="Ganti Mode Terang / Gelap">
+                    <i data-lucide="moon" id="themeIconMoon" class="w-4 h-4 block dark:hidden"></i>
+                    <i data-lucide="sun" id="themeIconSun" class="w-4 h-4 hidden dark:block"></i>
+                </button>
+
+                <!-- Tombol Backup JSON -->
+                <button type="button" onclick="openBackupModal()"
+                    class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold transition active:scale-95"
+                    title="Export & Import Backup Data JSON">
+                    <i data-lucide="database-backup" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
                     <span class="hidden sm:inline">Backup</span>
                 </button>
-                <button onclick="openManageWalletsModal()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 active:scale-95 rounded-xl transition">
-                    <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-slate-600"></i>
-                    <span>Atur / Reset Saldo</span>
+
+                <!-- Tombol Reset / Atur Saldo -->
+                <button type="button" onclick="openBalanceModal()"
+                    class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 border border-rose-200/70 dark:border-rose-800/60 text-xs sm:text-sm font-semibold transition active:scale-95"
+                    title="Atur atau Reset Saldo">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    <span>Reset</span>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Content Container -->
-    <main class="max-w-3xl mx-auto px-4 sm:px-6 pt-5 space-y-6">
+    <!-- ==================== MAIN CONTAINER ==================== -->
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        <!-- Hero Card: Total Kekayaan & Ringkasan Cashflow -->
-        <section class="hero-gradient rounded-3xl p-5 sm:p-7 text-white shadow-xl shadow-emerald-950/15 relative overflow-hidden">
-            <!-- Dekorasi Latar -->
-            <div class="absolute -right-12 -top-12 w-48 h-48 rounded-full bg-emerald-400/10 blur-2xl pointer-events-none"></div>
-            <div class="absolute -left-10 -bottom-16 w-44 h-44 rounded-full bg-teal-300/10 blur-xl pointer-events-none"></div>
+        <!-- 1. HERO TOTAL SALDO BERSIH -->
+        <section class="hero-gradient rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-emerald-900/15 dark:shadow-black/40 relative overflow-hidden">
+            <!-- Dekorasi Lingkaran Halus -->
+            <div class="absolute -right-12 -top-12 w-52 h-52 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
+            <div class="absolute -left-12 -bottom-16 w-48 h-48 rounded-full bg-teal-300/10 blur-2xl pointer-events-none"></div>
 
-            <div class="relative z-10">
-                <div class="flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 text-emerald-200/90 text-xs sm:text-sm font-medium">
-                        <span>Total Saldo Bersih</span>
-                        <button onclick="toggleHideBalance()" id="btnToggleEye" class="p-1 rounded-lg hover:bg-white/10 transition" title="Sembunyikan/Tampilkan Saldo">
-                            <i data-lucide="eye" class="w-4 h-4"></i>
+            <div class="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <!-- Kiri: Total Saldo Bersih -->
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xs font-bold tracking-widest uppercase text-emerald-100/90">
+                            TOTAL SALDO BERSIH
+                        </span>
+                        <button type="button" onclick="toggleHideBalance()" id="toggleBalanceBtn"
+                            class="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition active:scale-95"
+                            title="Sembunyikan / Tampilkan Saldo">
+                            <i data-lucide="eye" id="eyeIconShow" class="w-4 h-4"></i>
+                            <i data-lucide="eye-off" id="eyeIconHide" class="w-4 h-4 hidden"></i>
                         </button>
                     </div>
-                    <span id="currentPeriodBadge" class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white/10 text-emerald-100 border border-white/10">
-                        Periode Aktif
-                    </span>
+
+                    <div id="totalBalanceDisplay" class="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-mono-num tracking-tight text-white break-all">
+                        Rp 0.00
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="button" onclick="openBalanceModal()"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-xs text-white text-xs sm:text-sm font-semibold border border-white/20 transition active:scale-95">
+                            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                            <span>Atur Saldo Awal</span>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Nominal Total Saldo -->
-                <div class="mt-2 flex items-baseline gap-1.5">
-                    <span class="text-lg sm:text-xl font-semibold text-emerald-300">Rp</span>
-                    <h2 id="totalNetBalance" class="text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums">0.00</h2>
-                </div>
-
-                <!-- Kartu Pemasukan & Pengeluaran -->
-                <div class="grid grid-cols-2 gap-3 sm:gap-4 mt-6 pt-5 border-t border-white/15">
-                    <!-- Pemasukan -->
-                    <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
-                        <div class="flex items-center gap-2">
-                            <div class="w-7 h-7 rounded-lg bg-emerald-400/20 text-emerald-300 flex items-center justify-center shrink-0">
+                <!-- Kanan: Ringkasan Pemasukan & Pengeluaran Bulan Ini -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:min-w-[380px]">
+                    <!-- Pemasukan Bulan Ini -->
+                    <div class="bg-white/12 backdrop-blur-md border border-white/15 rounded-2xl p-4">
+                        <div class="flex items-center gap-2 text-emerald-100 text-xs font-semibold mb-1.5">
+                            <span class="w-6 h-6 rounded-lg bg-emerald-400/25 flex items-center justify-center text-emerald-200">
                                 <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
-                            </div>
-                            <span class="text-xs font-medium text-emerald-100/80">Total Pemasukan</span>
+                            </span>
+                            <span>Pemasukan Bulan Ini</span>
                         </div>
-                        <p id="totalIncomeDisplay" class="text-base sm:text-lg font-bold text-white mt-2 tabular-nums truncate">Rp 0</p>
+                        <p id="monthlyIncomeDisplay" class="text-base sm:text-lg font-bold font-mono-num text-white truncate">
+                            Rp 0.00
+                        </p>
                     </div>
 
-                    <!-- Pengeluaran -->
-                    <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
-                        <div class="flex items-center gap-2">
-                            <div class="w-7 h-7 rounded-lg bg-rose-400/20 text-rose-300 flex items-center justify-center shrink-0">
+                    <!-- Pengeluaran Bulan Ini -->
+                    <div class="bg-white/12 backdrop-blur-md border border-white/15 rounded-2xl p-4">
+                        <div class="flex items-center gap-2 text-rose-100 text-xs font-semibold mb-1.5">
+                            <span class="w-6 h-6 rounded-lg bg-rose-400/25 flex items-center justify-center text-rose-200">
                                 <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
-                            </div>
-                            <span class="text-xs font-medium text-emerald-100/80">Total Pengeluaran</span>
+                            </span>
+                            <span>Pengeluaran Bulan Ini</span>
                         </div>
-                        <p id="totalExpenseDisplay" class="text-base sm:text-lg font-bold text-white mt-2 tabular-nums truncate">Rp 0</p>
+                        <p id="monthlyExpenseDisplay" class="text-base sm:text-lg font-bold font-mono-num text-white truncate">
+                            Rp 0.00
+                        </p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Multi-Dompet Section (Tunai, E-Wallet, Bank) -->
-        <section>
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Dompet & Rekening</h3>
-                <button onclick="openTransactionModal('expense')" class="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm shadow-emerald-600/25 active:scale-95 transition">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span>Catat Transaksi</span>
-                </button>
+        <!-- 2. TIGA KARTU AKUN / DOMPET TERPISAH -->
+        <section aria-label="Daftar Akun dan Dompet" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Kartu 1: Tunai / Cash -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                            <i data-lucide="banknote" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Tunai / Cash</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Uang fisik di dompet</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="openBalanceModal('cash')"
+                            class="p-2 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-slate-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-950/50 transition"
+                            title="Edit Saldo Tunai">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                        <button type="button" onclick="confirmSingleWalletReset('cash')"
+                            class="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-rose-950/50 transition"
+                            title="Reset Saldo Tunai ke 0.00">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                    <p id="walletBalance_cash" class="text-lg sm:text-xl font-extrabold font-mono-num text-slate-900 dark:text-white truncate">
+                        Rp 0.00
+                    </p>
+                </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <!-- Card 1: Tunai / Cash -->
-                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm hover:border-emerald-300 transition group">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center shrink-0">
-                                <i data-lucide="banknote" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs font-semibold text-slate-500">Tunai / Cash</p>
-                                <p id="walletBalance_cash" class="text-base font-extrabold text-slate-900 mt-0.5 tabular-nums">Rp 0</p>
-                            </div>
+            <!-- Kartu 2: Dompet Digital -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                            <i data-lucide="smartphone" class="w-5 h-5"></i>
                         </div>
-                        <div class="flex items-center gap-1">
-                            <button onclick="openSingleWalletEdit('cash')" class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Atur Saldo Tunai">
-                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                            </button>
-                            <button onclick="confirmResetSingleWallet('cash')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Reset Saldo Tunai ke 0">
-                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                            </button>
+                        <div>
+                            <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Dompet Digital</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">GoPay, OVO, DANA, ShopeePay</p>
                         </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="openBalanceModal('ewallet')"
+                            class="p-2 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-slate-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-950/50 transition"
+                            title="Edit Saldo Dompet Digital">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                        <button type="button" onclick="confirmSingleWalletReset('ewallet')"
+                            class="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-rose-950/50 transition"
+                            title="Reset Saldo Dompet Digital ke 0.00">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
                     </div>
                 </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                    <p id="walletBalance_ewallet" class="text-lg sm:text-xl font-extrabold font-mono-num text-slate-900 dark:text-white truncate">
+                        Rp 0.00
+                    </p>
+                </div>
+            </div>
 
-                <!-- Card 2: E-Wallet / Dompet Digital -->
-                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm hover:border-emerald-300 transition group">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-200/60 flex items-center justify-center shrink-0">
-                                <i data-lucide="smartphone" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs font-semibold text-slate-500">Dompet Digital</p>
-                                <p id="walletBalance_ewallet" class="text-base font-extrabold text-slate-900 mt-0.5 tabular-nums">Rp 0</p>
-                            </div>
+            <!-- Kartu 3: Rekening Bank -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                            <i data-lucide="landmark" class="w-5 h-5"></i>
                         </div>
-                        <div class="flex items-center gap-1">
-                            <button onclick="openSingleWalletEdit('ewallet')" class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Atur Saldo Dompet Digital">
-                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                            </button>
-                            <button onclick="confirmResetSingleWallet('ewallet')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Reset Saldo Dompet Digital ke 0">
-                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                            </button>
+                        <div>
+                            <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Rekening Bank</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">BCA, Mandiri, BRI, BNI, Jago</p>
                         </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="openBalanceModal('bank')"
+                            class="p-2 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-slate-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-950/50 transition"
+                            title="Edit Saldo Rekening Bank">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                        <button type="button" onclick="confirmSingleWalletReset('bank')"
+                            class="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-rose-950/50 transition"
+                            title="Reset Saldo Rekening Bank ke 0.00">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
                     </div>
                 </div>
-
-                <!-- Card 3: Rekening Bank -->
-                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm hover:border-emerald-300 transition group">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center justify-center shrink-0">
-                                <i data-lucide="landmark" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs font-semibold text-slate-500">Rekening Bank</p>
-                                <p id="walletBalance_bank" class="text-base font-extrabold text-slate-900 mt-0.5 tabular-nums">Rp 0</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <button onclick="openSingleWalletEdit('bank')" class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Atur Saldo Rekening Bank">
-                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                            </button>
-                            <button onclick="confirmResetSingleWallet('bank')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Reset Saldo Rekening Bank ke 0">
-                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                            </button>
-                        </div>
-                    </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                    <p id="walletBalance_bank" class="text-lg sm:text-xl font-extrabold font-mono-num text-slate-900 dark:text-white truncate">
+                        Rp 0.00
+                    </p>
                 </div>
             </div>
         </section>
 
-        <!-- Proporsi Pengeluaran per Kategori -->
-        <section id="expenseBreakdownSection" class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="text-sm font-bold text-slate-900">Analisis Pengeluaran</h3>
-                    <p class="text-xs text-slate-500">Proporsi pengeluaran berdasarkan kategori</p>
-                </div>
-                <span id="expenseRatioBadge" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
-                    0% dari Pemasukan
-                </span>
-            </div>
+        <!-- 3. GRID UTAMA: FORM CATAT TRANSAKSI + RINGKASAN PENGELUARAN -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-            <!-- Bar Visualisasi Stacked -->
-            <div id="categoryStackedBar" class="w-full h-3.5 rounded-full bg-slate-100 overflow-hidden flex gap-0.5 mb-4">
-                <!-- Diisi dinamis via JS -->
-            </div>
-
-            <!-- Legend Kategori -->
-            <div id="categoryLegendList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <!-- Diisi dinamis via JS -->
-            </div>
-        </section>
-
-        <!-- Riwayat Transaksi Section -->
-        <section class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                <div>
-                    <h3 class="text-base font-bold text-slate-900">Riwayat Cashflow</h3>
-                    <p class="text-xs text-slate-500" id="transactionCountLabel">Menampilkan semua catatan transaksi</p>
-                </div>
-
-                <!-- Filter Akun -->
-                <div class="flex items-center gap-2">
-                    <select id="filterWallet" onchange="renderApp()" class="text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <option value="all">Semua Akun</option>
-                        <option value="cash">Tunai / Cash</option>
-                        <option value="ewallet">Dompet Digital</option>
-                        <option value="bank">Rekening Bank</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Tab Filter Tipe Transaksi -->
-            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-3 border-b border-slate-100">
-                <button onclick="setTypeFilter('all')" id="tabType_all" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-900 text-white">
-                    Semua
-                </button>
-                <button onclick="setTypeFilter('income')" id="tabType_income" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">
-                    Pemasukan
-                </button>
-                <button onclick="setTypeFilter('expense')" id="tabType_expense" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">
-                    Pengeluaran
-                </button>
-            </div>
-
-            <!-- List Transaksi -->
-            <div id="transactionList" class="divide-y divide-slate-100">
-                <!-- Item transaksi dirender oleh JavaScript -->
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Floating Action Button (Mobile & Quick Access) -->
-    <div class="fixed bottom-5 right-5 sm:bottom-8 sm:right-8 z-30 flex items-center gap-2">
-        <button onclick="openTransactionModal('income')" class="flex items-center gap-1.5 px-4 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold shadow-lg shadow-slate-900/25 active:scale-95 transition">
-            <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
-            <span>Pemasukan</span>
-        </button>
-        <button onclick="openTransactionModal('expense')" class="flex items-center gap-1.5 px-4 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-600/30 active:scale-95 transition">
-            <i data-lucide="minus-circle" class="w-4 h-4 text-emerald-100"></i>
-            <span>Pengeluaran</span>
-        </button>
-    </div>
-
-    <!-- ===================================================================== -->
-    <!-- MODAL 1: TAMBAH TRANSAKSI BARU                                        -->
-    <!-- ===================================================================== -->
-    <div id="transactionModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4">
-        <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up max-h-[92vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-5">
-                <h3 class="text-lg font-extrabold text-slate-900">Catat Transaksi Baru</h3>
-                <button onclick="closeModal('transactionModal')" class="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-
-            <form id="transactionForm" onsubmit="handleSaveTransaction(event)" class="space-y-4">
-                <!-- Toggle Tipe Transaksi -->
-                <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
-                    <button type="button" id="btnTypeExpense" onclick="selectTxType('expense')" class="py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white text-rose-600 shadow-xs">
-                        <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
-                        <span>Pengeluaran</span>
-                    </button>
-                    <button type="button" id="btnTypeIncome" onclick="selectTxType('income')" class="py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-600">
-                        <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
-                        <span>Pemasukan</span>
-                    </button>
-                </div>
-                <input type="hidden" id="txType" value="expense">
-
-                <!-- Input Nominal Desimal Auto-Format -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Nominal (Rupiah)</label>
-                    <div class="relative">
-                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-base font-bold text-slate-400">Rp</span>
-                        <input type="text" id="txAmountInput" inputmode="decimal" placeholder="0.00" required
-                            class="w-full pl-12 pr-4 py-3.5 text-2xl font-extrabold text-slate-900 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition tabular-nums"
-                            oninput="handleCurrencyInput(this)" onblur="finalizeCurrencyInput(this)">
-                    </div>
-                    <!-- Tombol Cepat Nominal -->
-                    <div class="flex items-center gap-1.5 mt-2 overflow-x-auto no-scrollbar">
-                        <button type="button" onclick="addQuickAmount(10000)" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-[11px] font-semibold text-slate-600 transition shrink-0">+10,000</button>
-                        <button type="button" onclick="addQuickAmount(25000)" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-[11px] font-semibold text-slate-600 transition shrink-0">+25,000</button>
-                        <button type="button" onclick="addQuickAmount(50000)" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-[11px] font-semibold text-slate-600 transition shrink-0">+50,000</button>
-                        <button type="button" onclick="addQuickAmount(100000)" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-[11px] font-semibold text-slate-600 transition shrink-0">+100,000</button>
+            <!-- KOLOM KIRI (5/12): FORM CATAT TRANSAKSI -->
+            <section class="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                <div class="flex items-center justify-between mb-5">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                            <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900 dark:text-white">Catat Transaksi</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Input arus kas masuk & keluar</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Sumber Akun / Dompet -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Sumber Akun / Dompet</label>
-                    <div class="grid grid-cols-3 gap-2">
-                        <label class="cursor-pointer">
-                            <input type="radio" name="txWallet" value="cash" class="peer sr-only" checked>
-                            <div class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 peer-checked:border-emerald-600 peer-checked:bg-emerald-50/70 peer-checked:text-emerald-800 text-center transition">
-                                <i data-lucide="banknote" class="w-4 h-4 mx-auto mb-1 text-amber-600"></i>
-                                <span class="block text-[11px] font-bold">Tunai</span>
-                            </div>
-                        </label>
-                        <label class="cursor-pointer">
-                            <input type="radio" name="txWallet" value="ewallet" class="peer sr-only">
-                            <div class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 peer-checked:border-emerald-600 peer-checked:bg-emerald-50/70 peer-checked:text-emerald-800 text-center transition">
-                                <i data-lucide="smartphone" class="w-4 h-4 mx-auto mb-1 text-sky-600"></i>
-                                <span class="block text-[11px] font-bold">Dompet</span>
-                            </div>
-                        </label>
-                        <label class="cursor-pointer">
-                            <input type="radio" name="txWallet" value="bank" class="peer sr-only">
-                            <div class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 peer-checked:border-emerald-600 peer-checked:bg-emerald-50/70 peer-checked:text-emerald-800 text-center transition">
-                                <i data-lucide="landmark" class="w-4 h-4 mx-auto mb-1 text-emerald-600"></i>
-                                <span class="block text-[11px] font-bold">Bank</span>
-                            </div>
-                        </label>
+                <form id="transactionForm" onsubmit="handleAddTransaction(event)" class="space-y-4">
+                    <!-- Toggle Tipe Transaksi -->
+                    <div class="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/90">
+                        <button type="button" id="btnTypeExpense" onclick="setTransactionType('expense')"
+                            class="py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all bg-rose-600 text-white shadow-sm">
+                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            <span>Pengeluaran</span>
+                        </button>
+                        <button type="button" id="btnTypeIncome" onclick="setTransactionType('income')"
+                            class="py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                            <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
+                            <span>Pemasukan</span>
+                        </button>
                     </div>
-                </div>
 
-                <!-- Kategori & Tanggal -->
-                <div class="grid grid-cols-2 gap-3">
+                    <!-- Input Nominal Auto-Format M-Banking -->
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Kategori</label>
-                        <select id="txCategory" class="w-full px-3 py-2.5 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            <!-- Diisi dinamis berdasarkan tipe -->
+                        <label for="txAmount" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Nominal (Format M-Banking)
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 dark:text-slate-500">
+                                Rp
+                            </span>
+                            <input type="text" id="txAmount" inputmode="decimal" autocomplete="off" required
+                                placeholder="0.00"
+                                oninput="handleMBankingInput(this)"
+                                onblur="finalizeMBankingInput(this)"
+                                class="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-lg font-extrabold font-mono-num text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                        </div>
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                            Contoh: ketik atau tempel <span class="font-mono-num text-slate-600 dark:text-slate-300">6,849,415.71</span>
+                        </p>
+                    </div>
+
+                    <!-- Pilihan Akun / Dompet -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Pilih Akun / Dompet
+                        </label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="txWallet" value="cash" class="peer sr-only" checked>
+                                <div class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-950/50 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 text-center transition">
+                                    <i data-lucide="banknote" class="w-4 h-4 mx-auto mb-1"></i>
+                                    <span class="block text-[11px] font-bold">Tunai</span>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="txWallet" value="ewallet" class="peer sr-only">
+                                <div class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-950/50 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 text-center transition">
+                                    <i data-lucide="smartphone" class="w-4 h-4 mx-auto mb-1"></i>
+                                    <span class="block text-[11px] font-bold">E-Wallet</span>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="txWallet" value="bank" class="peer sr-only">
+                                <div class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-950/50 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 text-center transition">
+                                    <i data-lucide="landmark" class="w-4 h-4 mx-auto mb-1"></i>
+                                    <span class="block text-[11px] font-bold">Bank</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Kategori & Tanggal -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label for="txCategory" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                                Kategori
+                            </label>
+                            <select id="txCategory" required
+                                class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
+                            </select>
+                        </div>
+                        <div>
+                            <label for="txDate" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                                Tanggal
+                            </label>
+                            <input type="date" id="txDate" required
+                                class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
+                        </div>
+                    </div>
+
+                    <!-- Catatan / Deskripsi -->
+                    <div>
+                        <label for="txNote" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Catatan / Deskripsi
+                        </label>
+                        <input type="text" id="txNote" placeholder="Contoh: Makan siang, Gaji bulanan, Kopi..."
+                            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="submitTxBtn"
+                        class="w-full py-3.5 px-4 rounded-xl hero-gradient hover:opacity-95 text-white font-bold text-sm shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition active:scale-[0.99]">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                        <span>Simpan Transaksi</span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- KOLOM KANAN (7/12): RINGKASAN PENGELUARAN + RIWAYAT TRANSAKSI -->
+            <div class="lg:col-span-7 space-y-6">
+
+                <!-- PANEL RINGKASAN PENGELUARAN BULAN BERJALAN -->
+                <section class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                    <div class="flex items-center justify-between gap-2 mb-4">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                                <i data-lucide="pie-chart" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900 dark:text-white">Ringkasan Pengeluaran</h2>
+                                <p id="currentMonthLabel" class="text-xs text-slate-500 dark:text-slate-400">Proporsi kategori bulan ini</p>
+                            </div>
+                        </div>
+                        <span id="expenseTotalBadge" class="px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 text-xs font-bold font-mono-num">
+                            Rp 0.00
+                        </span>
+                    </div>
+
+                    <!-- Stacked Visual Progress Bar -->
+                    <div id="expenseStackedBar" class="w-full h-3.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex gap-0.5 mb-4">
+                        <!-- Diisi secara dinamis oleh JavaScript -->
+                    </div>
+
+                    <!-- Daftar Rincian Kategori -->
+                    <div id="expenseBreakdownList" class="space-y-2.5">
+                        <!-- Diisi secara dinamis oleh JavaScript -->
+                    </div>
+                </section>
+
+                <!-- PANEL RIWAYAT TRANSAKSI -->
+                <section class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center">
+                                <i data-lucide="history" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900 dark:text-white">Riwayat Transaksi</h2>
+                                <p id="txCountLabel" class="text-xs text-slate-500 dark:text-slate-400">0 transaksi tercatat</p>
+                            </div>
+                        </div>
+
+                        <!-- Filter Akun -->
+                        <select id="filterWallet" onchange="renderTransactions()"
+                            class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="all">Semua Akun</option>
+                            <option value="cash">Tunai / Cash</option>
+                            <option value="ewallet">Dompet Digital</option>
+                            <option value="bank">Rekening Bank</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Tanggal</label>
-                        <input type="date" id="txDate" required class="w-full px-3 py-2.5 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+
+                    <!-- Filter Tipe & Kolom Pencarian -->
+                    <div class="flex flex-col sm:flex-row gap-2.5 mb-4">
+                        <!-- Filter Tipe Pills -->
+                        <div class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0">
+                            <button type="button" onclick="setHistoryTypeFilter('all')" id="filterType_all"
+                                class="px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs">
+                                Semua
+                            </button>
+                            <button type="button" onclick="setHistoryTypeFilter('income')" id="filterType_income"
+                                class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                                Pemasukan
+                            </button>
+                            <button type="button" onclick="setHistoryTypeFilter('expense')" id="filterType_expense"
+                                class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                                Pengeluaran
+                            </button>
+                        </div>
+
+                        <!-- Pencarian Catatan / Kategori -->
+                        <div class="relative flex-1">
+                            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                            <input type="text" id="searchTxInput" oninput="renderTransactions()"
+                                placeholder="Cari catatan atau kategori..."
+                                class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
                     </div>
-                </div>
 
-                <!-- Catatan / Deskripsi -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Catatan Singkat</label>
-                    <input type="text" id="txNote" placeholder="Contoh: Makan siang, Gaji bulanan, Kopi..." required
-                        class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
-                </div>
-
-                <button type="submit" class="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 active:scale-[0.99] transition mt-2">
-                    Simpan Transaksi
-                </button>
-            </form>
+                    <!-- List Item Transaksi -->
+                    <div id="transactionList" class="space-y-2.5 max-h-[480px] overflow-y-auto pr-1">
+                        <!-- Diisi secara dinamis oleh JavaScript -->
+                    </div>
+                </section>
+            </div>
         </div>
-    </div>
+    </main>
 
-    <!-- ===================================================================== -->
-    <!-- MODAL 2: ATUR & RESET SALDO MULTI-DOMPET                              -->
-    <!-- ===================================================================== -->
-    <div id="manageWalletsModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4">
-        <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up max-h-[92vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-2">
-                <h3 class="text-lg font-extrabold text-slate-900">Atur & Reset Saldo</h3>
-                <button onclick="closeModal('manageWalletsModal')" class="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition">
-                    <i data-lucide="x" class="w-4 h-4"></i>
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="max-w-5xl mx-auto px-4 sm:px-6 py-6 text-center text-xs text-slate-400 dark:text-slate-500">
+        <p>SmartKas &bull; Data tersimpan aman secara lokal di browser perangkat Anda.</p>
+    </footer>
+
+    <!-- ==================== MODAL 1: ATUR & RESET SALDO ==================== -->
+    <div id="balanceModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-modal-pop">
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">Atur & Reset Saldo</h3>
+                </div>
+                <button type="button" onclick="closeBalanceModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <p class="text-xs text-slate-500 mb-5">Sesuaikan nominal saldo saat ini atau reset saldo per dompet maupun keseluruhan.</p>
 
-            <form onsubmit="handleSaveAllWallets(event)" class="space-y-4">
+            <form onsubmit="handleSaveBalances(event)" class="p-6 space-y-4">
+                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Sesuaikan saldo riil setiap akun dengan format M-Banking (<span class="font-mono-num">6,849,415.71</span>) atau reset saldo ke <span class="font-mono-num">0.00</span>.
+                </p>
+
                 <!-- Input Tunai -->
-                <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <label class="flex items-center gap-2 text-xs font-bold text-slate-700">
-                            <i data-lucide="banknote" class="w-4 h-4 text-amber-600"></i>
-                            <span>Saldo Tunai / Cash</span>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label for="inputBalance_cash" class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <i data-lucide="banknote" class="w-3.5 h-3.5 text-amber-500"></i>
+                            <span>Tunai / Cash</span>
                         </label>
-                        <button type="button" onclick="setInputZero('editWallet_cash')" class="text-[11px] font-bold text-rose-600 hover:underline">Reset 0</button>
+                        <button type="button" onclick="setInputZero('inputBalance_cash')" class="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline">
+                            Reset 0.00
+                        </button>
                     </div>
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
-                        <input type="text" id="editWallet_cash" inputmode="decimal" placeholder="0.00" oninput="handleCurrencyInput(this)" onblur="finalizeCurrencyInput(this)"
-                            class="w-full pl-10 pr-3.5 py-2.5 text-base font-extrabold text-slate-900 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 tabular-nums">
+                        <input type="text" id="inputBalance_cash" inputmode="decimal"
+                            oninput="handleMBankingInput(this)" onblur="finalizeMBankingInput(this)"
+                            class="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold font-mono-num text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     </div>
                 </div>
 
                 <!-- Input Dompet Digital -->
-                <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <label class="flex items-center gap-2 text-xs font-bold text-slate-700">
-                            <i data-lucide="smartphone" class="w-4 h-4 text-sky-600"></i>
-                            <span>Saldo Dompet Digital</span>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label for="inputBalance_ewallet" class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <i data-lucide="smartphone" class="w-3.5 h-3.5 text-sky-500"></i>
+                            <span>Dompet Digital</span>
                         </label>
-                        <button type="button" onclick="setInputZero('editWallet_ewallet')" class="text-[11px] font-bold text-rose-600 hover:underline">Reset 0</button>
+                        <button type="button" onclick="setInputZero('inputBalance_ewallet')" class="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline">
+                            Reset 0.00
+                        </button>
                     </div>
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
-                        <input type="text" id="editWallet_ewallet" inputmode="decimal" placeholder="0.00" oninput="handleCurrencyInput(this)" onblur="finalizeCurrencyInput(this)"
-                            class="w-full pl-10 pr-3.5 py-2.5 text-base font-extrabold text-slate-900 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 tabular-nums">
+                        <input type="text" id="inputBalance_ewallet" inputmode="decimal"
+                            oninput="handleMBankingInput(this)" onblur="finalizeMBankingInput(this)"
+                            class="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold font-mono-num text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     </div>
                 </div>
 
                 <!-- Input Rekening Bank -->
-                <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <label class="flex items-center gap-2 text-xs font-bold text-slate-700">
-                            <i data-lucide="landmark" class="w-4 h-4 text-emerald-600"></i>
-                            <span>Saldo Rekening Bank</span>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label for="inputBalance_bank" class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <i data-lucide="landmark" class="w-3.5 h-3.5 text-emerald-500"></i>
+                            <span>Rekening Bank</span>
                         </label>
-                        <button type="button" onclick="setInputZero('editWallet_bank')" class="text-[11px] font-bold text-rose-600 hover:underline">Reset 0</button>
+                        <button type="button" onclick="setInputZero('inputBalance_bank')" class="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline">
+                            Reset 0.00
+                        </button>
                     </div>
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
-                        <input type="text" id="editWallet_bank" inputmode="decimal" placeholder="0.00" oninput="handleCurrencyInput(this)" onblur="finalizeCurrencyInput(this)"
-                            class="w-full pl-10 pr-3.5 py-2.5 text-base font-extrabold text-slate-900 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 tabular-nums">
+                        <input type="text" id="inputBalance_bank" inputmode="decimal"
+                            oninput="handleMBankingInput(this)" onblur="finalizeMBankingInput(this)"
+                            class="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold font-mono-num text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     </div>
                 </div>
 
-                <button type="submit" class="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/20 transition">
-                    Simpan Perubahan Saldo
-                </button>
-            </form>
-
-            <!-- Zona Reset & Data Contoh -->
-            <div class="mt-5 pt-4 border-t border-slate-100 space-y-2">
-                <button type="button" onclick="confirmFullReset()" class="w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center justify-center gap-2 transition">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    <span>Reset Semua Saldo & Riwayat ke Nol</span>
-                </button>
-                <button type="button" onclick="loadDemoData()" class="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-2 transition">
-                    <i data-lucide="sparkles" class="w-4 h-4 text-emerald-600"></i>
-                    <span>Isi Ulang Data Simulasi / Contoh</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================================================================== -->
-    <!-- MODAL 3: EDIT SALDO SATU DOMPET CEPAT                                 -->
-    <!-- ===================================================================== -->
-    <div id="singleWalletModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-slide-up">
-            <div class="flex items-center justify-between mb-4">
-                <h3 id="singleWalletModalTitle" class="text-base font-extrabold text-slate-900">Atur Saldo Dompet</h3>
-                <button onclick="closeModal('singleWalletModal')" class="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-            <form onsubmit="handleSaveSingleWallet(event)" class="space-y-4">
-                <input type="hidden" id="singleWalletKey">
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Nominal Saldo Baru</label>
-                    <div class="relative">
-                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">Rp</span>
-                        <input type="text" id="singleWalletAmountInput" inputmode="decimal" placeholder="0.00" required oninput="handleCurrencyInput(this)" onblur="finalizeCurrencyInput(this)"
-                            class="w-full pl-11 pr-4 py-3 text-xl font-extrabold text-slate-900 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 tabular-nums">
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button type="button" onclick="setInputZero('singleWalletAmountInput')" class="px-3.5 py-2.5 rounded-xl bg-rose-50 text-rose-600 text-xs font-bold hover:bg-rose-100 transition">
-                        Set 0.00
+                <div class="pt-2 flex flex-col gap-2.5">
+                    <button type="submit"
+                        class="w-full py-3 px-4 rounded-xl hero-gradient hover:opacity-95 text-white text-sm font-bold shadow-md transition active:scale-[0.99]">
+                        Simpan Perubahan Saldo
                     </button>
-                    <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition">
-                        Simpan Saldo
+
+                    <button type="button" onclick="confirmFullReset()"
+                        class="w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        <span>Full Reset Semua Data & Riwayat ke 0.00</span>
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- ===================================================================== -->
-    <!-- MODAL 5: BACKUP & RESTORE JSON (UNTUK GITHUB PAGES)                   -->
-    <!-- ===================================================================== -->
-    <div id="backupModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-slide-up">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-base font-extrabold text-slate-900">Backup & Restore Data</h3>
-                <button onclick="closeModal('backupModal')" class="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
-                    <i data-lucide="x" class="w-4 h-4"></i>
+    <!-- ==================== MODAL 2: BACKUP & RESTORE JSON ==================== -->
+    <div id="backupModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-modal-pop">
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <i data-lucide="database-backup" class="w-4 h-4"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">Backup & Restore Data</h3>
+                </div>
+                <button type="button" onclick="closeBackupModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <p class="text-xs text-slate-500 leading-relaxed mb-4">
-                Data SmartKas tersimpan otomatis di browser perangkat Anda. Unduh file JSON secara berkala agar data aman saat berpindah perangkat atau membersihkan cache.
-            </p>
-            <div class="space-y-2.5">
-                <button type="button" onclick="exportBackupJSON()" class="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition">
-                    <i data-lucide="download" class="w-4 h-4"></i>
-                    <span>Download Backup (.JSON)</span>
-                </button>
-                <label class="w-full py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition">
-                    <i data-lucide="upload" class="w-4 h-4 text-emerald-600"></i>
-                    <span>Pulihkan dari File (.JSON)</span>
-                    <input type="file" id="importJsonInput" accept=".json,application/json" class="hidden" onchange="importBackupJSON(event)">
-                </label>
+
+            <div class="p-6 space-y-4">
+                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Simpan cadangan seluruh saldo dan riwayat transaksi Anda ke dalam file <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 font-mono">.json</code> agar aman saat berganti browser atau perangkat.
+                </p>
+
+                <!-- Export JSON -->
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
+                    <div class="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                        <i data-lucide="download" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+                        <span>Export Data (Download JSON)</span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Mengunduh file backup berisi saldo semua akun dan seluruh catatan transaksi.
+                    </p>
+                    <button type="button" onclick="exportDataJSON()"
+                        class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition active:scale-[0.99]">
+                        <i data-lucide="file-down" class="w-4 h-4"></i>
+                        <span>Download File Backup (.json)</span>
+                    </button>
+                </div>
+
+                <!-- Import JSON -->
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
+                    <div class="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                        <i data-lucide="upload" class="w-4 h-4 text-sky-600 dark:text-sky-400"></i>
+                        <span>Restore Data (Upload JSON)</span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Memulihkan saldo dan riwayat transaksi dari file backup <code class="font-mono">.json</code> sebelumnya.
+                    </p>
+                    <label class="w-full py-2.5 px-4 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition">
+                        <i data-lucide="file-up" class="w-4 h-4 text-sky-600 dark:text-sky-400"></i>
+                        <span>Pilih File Backup (.json)</span>
+                        <input type="file" id="importJsonFile" accept=".json,application/json" onchange="handleImportJSON(event)" class="hidden">
+                    </label>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================================================================== -->
-    <!-- MODAL 4: KONFIRMASI AMAN (PENGGANTI ALERT/CONFIRM BAWAAN)             -->
-    <!-- ===================================================================== -->
-    <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-slide-up text-center">
-            <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3">
+    <!-- ==================== MODAL 3: KONFIRMASI KUSTOM ==================== -->
+    <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 text-center animate-modal-pop">
+            <div class="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4">
                 <i data-lucide="alert-triangle" class="w-6 h-6"></i>
             </div>
-            <h3 id="confirmTitle" class="text-base font-extrabold text-slate-900">Konfirmasi Tindakan</h3>
-            <p id="confirmMessage" class="text-xs text-slate-500 mt-1.5 leading-relaxed">Apakah Anda yakin ingin melanjutkan tindakan ini?</p>
-            <div class="grid grid-cols-2 gap-2.5 mt-5">
-                <button onclick="closeModal('confirmModal')" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+            <h3 id="confirmTitle" class="text-base font-extrabold text-slate-900 dark:text-white mb-1.5">
+                Konfirmasi Tindakan
+            </h3>
+            <p id="confirmMessage" class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
+                Apakah Anda yakin ingin melanjutkan tindakan ini?
+            </p>
+            <div class="grid grid-cols-2 gap-2.5">
+                <button type="button" onclick="closeConfirmModal()"
+                    class="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition">
                     Batal
                 </button>
-                <button id="confirmActionBtn" class="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition">
+                <button type="button" id="confirmProceedBtn"
+                    class="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition">
                     Ya, Lanjutkan
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toastContainer" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none"></div>
+    <!-- ==================== TOAST NOTIFICATION ==================== -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-    <!-- ===================================================================== -->
-    <!-- LOGIKA JAVASCRIPT APLIKASI SMARTKAS                                   -->
-    <!-- ===================================================================== -->
+    <!-- ==================== JAVASCRIPT APPLICATION LOGIC ==================== -->
     <script>
-        // Kunci Penyimpanan LocalStorage
-        const STORAGE_KEY = 'smartkas_fintech_data_v1';
+        // ==================== KONSTANTA & KONFIGURASI ====================
+        const STORAGE_KEY = 'smartkas_data_v2';
+        const THEME_KEY = 'smartkas_theme';
 
-        // Metadata Dompet
-        const WALLET_META = {
-            cash: { label: 'Tunai / Cash', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200', icon: 'banknote' },
-            ewallet: { label: 'Dompet Digital', badgeClass: 'bg-sky-50 text-sky-700 border-sky-200', icon: 'smartphone' },
-            bank: { label: 'Rekening Bank', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: 'landmark' }
+        const WALLET_INFO = {
+            cash: {
+                name: 'Tunai / Cash',
+                short: 'Tunai',
+                icon: 'banknote',
+                badgeClass: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/60'
+            },
+            ewallet: {
+                name: 'Dompet Digital',
+                short: 'E-Wallet',
+                icon: 'smartphone',
+                badgeClass: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800/60'
+            },
+            bank: {
+                name: 'Rekening Bank',
+                short: 'Bank',
+                icon: 'landmark',
+                badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60'
+            }
         };
 
-        // Metadata Kategori & Warna Grafik
         const CATEGORIES = {
-            expense: [
-                { name: 'Makan & Minum', icon: 'utensils', color: 'bg-amber-500', text: 'text-amber-600', bgSoft: 'bg-amber-50' },
-                { name: 'Transportasi', icon: 'car', color: 'bg-sky-500', text: 'text-sky-600', bgSoft: 'bg-sky-50' },
-                { name: 'Tagihan', icon: 'receipt', color: 'bg-rose-500', text: 'text-rose-600', bgSoft: 'bg-rose-50' },
-                { name: 'Belanja', icon: 'shopping-bag', color: 'bg-purple-500', text: 'text-purple-600', bgSoft: 'bg-purple-50' },
-                { name: 'Hiburan', icon: 'film', color: 'bg-indigo-500', text: 'text-indigo-600', bgSoft: 'bg-indigo-50' },
-                { name: 'Lainnya', icon: 'layers', color: 'bg-slate-500', text: 'text-slate-600', bgSoft: 'bg-slate-100' }
-            ],
             income: [
-                { name: 'Gaji', icon: 'briefcase', color: 'bg-emerald-500', text: 'text-emerald-600', bgSoft: 'bg-emerald-50' },
-                { name: 'Bisnis', icon: 'trending-up', color: 'bg-teal-500', text: 'text-teal-600', bgSoft: 'bg-teal-50' },
-                { name: 'Lainnya', icon: 'plus-circle', color: 'bg-cyan-500', text: 'text-cyan-600', bgSoft: 'bg-cyan-50' }
+                { name: 'Gaji', icon: 'briefcase', color: 'bg-emerald-500' },
+                { name: 'Bonus', icon: 'gift', color: 'bg-teal-500' },
+                { name: 'Hasil Usaha', icon: 'store', color: 'bg-cyan-500' },
+                { name: 'Investasi', icon: 'trending-up', color: 'bg-indigo-500' },
+                { name: 'Lainnya', icon: 'sparkles', color: 'bg-slate-500' }
+            ],
+            expense: [
+                { name: 'Makanan & Minuman', icon: 'utensils', color: 'bg-amber-500' },
+                { name: 'Transportasi', icon: 'car', color: 'bg-sky-500' },
+                { name: 'Belanja', icon: 'shopping-bag', color: 'bg-purple-500' },
+                { name: 'Tagihan & Utilitas', icon: 'receipt', color: 'bg-rose-500' },
+                { name: 'Hiburan', icon: 'film', color: 'bg-pink-500' },
+                { name: 'Kesehatan', icon: 'heart-pulse', color: 'bg-emerald-500' },
+                { name: 'Lainnya', icon: 'layers', color: 'bg-slate-500' }
             ]
         };
 
-        // State Aplikasi
-        let appState = {
-            wallets: {
-                cash: 0,
-                ewallet: 0,
-                bank: 0
+        // ==================== STATE APLIKASI ====================
+        let state = {
+            balances: {
+                cash: 0.00,
+                ewallet: 0.00,
+                bank: 0.00
             },
             transactions: [],
             hideBalance: false,
-            filterType: 'all'
+            currentTxType: 'expense',
+            historyTypeFilter: 'all'
         };
 
-        // =====================================================================
-        // 1. UTILITAS FORMAT NOMINAL M-BANKING (6,849,415.71) & ARITMETIKA AMAN
-        // =====================================================================
-        function roundCurrency(num) {
-            return Math.round((Number(num) + Number.EPSILON) * 100) / 100;
+        let confirmCallback = null;
+
+        // ==================== ARITMETIKA & FORMATTER M-BANKING ====================
+        /**
+         * Pembulatan presisi 2 desimal sen untuk menghindari floating-point error JS
+         */
+        function roundCurrency(value) {
+            const num = Number(value) || 0;
+            return Math.round((num + Number.EPSILON) * 100) / 100;
         }
 
-        function formatCurrencyMBanking(num, alwaysShowDecimals = true) {
-            const cleanNum = roundCurrency(num || 0);
-            const isNegative = cleanNum < 0;
-            const absVal = Math.abs(cleanNum);
-            const parts = absVal.toFixed(2).split('.');
-            const intFormatted = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            const decPart = parts[1];
-
-            if (!alwaysShowDecimals && decPart === '00') {
-                return `${isNegative ? '-' : ''}${intFormatted}`;
-            }
-            return `${isNegative ? '-' : ''}${intFormatted}.${decPart}`;
+        /**
+         * Format angka ke string M-Banking persis: 6,849,415.71
+         */
+        function formatMBanking(value) {
+            const clean = roundCurrency(value);
+            const isNegative = clean < 0;
+            const absVal = Math.abs(clean);
+            const [intPart, decPart] = absVal.toFixed(2).split('.');
+            const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return `${isNegative ? '-' : ''}${formattedInt}.${decPart}`;
         }
 
-        // Alias kompatibilitas untuk seluruh bagian UI
-        function formatNumberID(num) {
-            return formatCurrencyMBanking(num, true);
-        }
+        /**
+         * Parse string input (mendukung 6,849,415.71 | Rp. 6,849,415.71 | 6849415.71 | 6.849.415,71)
+         */
+        function parseMBanking(rawStr) {
+            if (typeof rawStr === 'number') return roundCurrency(rawStr);
+            if (!rawStr) return 0.00;
 
-        // Mengurai berbagai format input (6,849,415.71 | 6849415.71 | 6.849.415,71)
-        function parseFormattedNumber(str) {
-            if (typeof str === 'number') return roundCurrency(str);
-            if (!str) return 0;
+            let str = String(rawStr).trim().replace(/[^0-9.,-]/g, '');
+            if (!str) return 0.00;
 
-            let cleaned = String(str).trim().replace(/[^\d.,-]/g, '');
-            if (!cleaned) return 0;
+            const lastDot = str.lastIndexOf('.');
+            const lastComma = str.lastIndexOf(',');
 
-            const lastComma = cleaned.lastIndexOf(',');
-            const lastDot = cleaned.lastIndexOf('.');
-
-            if (lastComma > -1 && lastDot > -1) {
+            if (lastDot !== -1 && lastComma !== -1) {
                 if (lastDot > lastComma) {
-                    // Format M-Banking: 6,849,415.71 -> hapus koma ribuan
-                    cleaned = cleaned.replace(/,/g, '');
+                    // Format standar M-Banking: 6,849,415.71
+                    str = str.replace(/,/g, '');
                 } else {
-                    // Format Indo lama: 6.849.415,71 -> hapus titik ribuan, ganti koma jadi titik
-                    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+                    // Format Eropa/Indonesia lama: 6.849.415,71
+                    str = str.replace(/\./g, '').replace(',', '.');
                 }
-            } else if (lastComma > -1) {
-                // Hanya ada koma: cek apakah sebagai desimal (<= 2 digit di belakang) atau pemisah ribuan
-                const afterComma = cleaned.slice(lastComma + 1);
-                if (afterComma.length <= 2 && cleaned.indexOf(',') === lastComma) {
-                    cleaned = cleaned.replace(',', '.');
+            } else if (lastComma !== -1) {
+                // Hanya ada koma: cek apakah pemisah ribuan (3 digit di belakang) atau desimal
+                const parts = str.split(',');
+                if (parts.length === 2 && parts[1].length <= 2) {
+                    str = str.replace(',', '.');
                 } else {
-                    cleaned = cleaned.replace(/,/g, '');
+                    str = str.replace(/,/g, '');
                 }
-            } else if (lastDot > -1) {
-                // Hanya ada titik: jika titik muncul lebih dari 1 kali (mis. 6.849.415), anggap pemisah ribuan
-                const dotCount = (cleaned.match(/\./g) || []).length;
-                if (dotCount > 1) {
-                    cleaned = cleaned.replace(/\./g, '');
+            } else if (lastDot !== -1) {
+                // Hanya ada titik: jika lebih dari 1 titik (misal 6.849.415), anggap pemisah ribuan
+                const dotParts = str.split('.');
+                if (dotParts.length > 2) {
+                    str = str.replace(/\./g, '');
                 }
             }
 
-            const parsed = parseFloat(cleaned);
-            return isNaN(parsed) ? 0 : roundCurrency(parsed);
+            const parsed = parseFloat(str);
+            return isNaN(parsed) ? 0.00 : roundCurrency(parsed);
         }
 
-        // Handler real-time saat mengetik atau paste nominal seperti "6,849,415.71"
-        function handleCurrencyInput(inputEl) {
-            let val = inputEl.value;
-            if (!val) return;
+        /**
+         * Auto-format saat user mengetik atau paste di kolom nominal
+         */
+        function handleMBankingInput(input) {
+            let val = input.value;
 
-            // Jika pengguna menempelkan (paste) format lengkap seperti "Rp. 6,849,415.71"
-            if (/Rp/i.test(val) || (val.includes(',') && val.includes('.'))) {
-                const parsed = parseFormattedNumber(val);
-                const hasDecimal = val.includes('.');
-                if (hasDecimal) {
-                    const decStr = val.split('.').pop().replace(/\D/g, '').slice(0, 2);
-                    const intPart = Math.floor(Math.abs(parsed)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                    inputEl.value = `${parsed < 0 ? '-' : ''}${intPart}.${decStr}`;
+            // Jika mengandung "Rp" atau format paste lengkap dengan koma & titik
+            if (/rp/i.test(val) || (val.includes(',') && val.includes('.'))) {
+                const parsed = parseMBanking(val);
+                const hasDot = val.includes('.');
+                if (hasDot) {
+                    const rawDec = val.split('.').pop().replace(/\D/g, '').slice(0, 2);
+                    const intOnly = Math.floor(Math.abs(parsed)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                    input.value = `${parsed < 0 ? '-' : ''}${intOnly}.${rawDec}`;
                 } else {
-                    inputEl.value = Math.round(parsed).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                    input.value = Math.floor(Math.abs(parsed)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                 }
                 return;
             }
 
-            // Ganti koma yang diketik di akhir sebagai titik desimal hanya jika belum ada titik & pengguna sengaja mengetik desimal,
-            // namun jika hanya digit biasa, format ribuan memakai koma (,) dan desimal memakai titik (.)
-            let sanitized = val.replace(/[^\d.]/g, '');
+            // Sanitasi karakter selain digit dan titik desimal
+            let cleaned = val.replace(/[^0-9.]/g, '');
+            const firstDot = cleaned.indexOf('.');
 
-            // Pastikan hanya ada satu titik desimal
-            const dotIndex = sanitized.indexOf('.');
-            if (dotIndex !== -1) {
-                const intRaw = sanitized.slice(0, dotIndex).replace(/\D/g, '');
-                const decRaw = sanitized.slice(dotIndex + 1).replace(/\D/g, '').slice(0, 2);
-                const intFormatted = (intRaw ? parseInt(intRaw, 10).toString() : '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                inputEl.value = `${intFormatted}.${decRaw}`;
+            if (firstDot !== -1) {
+                const intRaw = cleaned.slice(0, firstDot).replace(/\D/g, '');
+                const decRaw = cleaned.slice(firstDot + 1).replace(/\D/g, '').slice(0, 2);
+                const intFormatted = (intRaw ? String(parseInt(intRaw, 10)) : '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                input.value = `${intFormatted}.${decRaw}`;
             } else {
-                const intRaw = sanitized.replace(/\D/g, '');
+                const intRaw = cleaned.replace(/\D/g, '');
                 if (!intRaw) {
-                    inputEl.value = '';
+                    input.value = '';
                     return;
                 }
-                inputEl.value = parseInt(intRaw, 10).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                input.value = String(parseInt(intRaw, 10)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
             }
         }
 
-        // Rapikan 2 angka di belakang titik saat input selesai difokus (blur)
-        function finalizeCurrencyInput(inputEl) {
-            if (!inputEl.value.trim()) return;
-            const num = parseFormattedNumber(inputEl.value);
-            inputEl.value = formatCurrencyMBanking(num, true);
+        /**
+         * Lengkapi 2 digit desimal (.00) ketika fokus meninggalkan input
+         */
+        function finalizeMBankingInput(input) {
+            if (!input.value.trim()) return;
+            const val = parseMBanking(input.value);
+            input.value = formatMBanking(val);
         }
 
         function setInputZero(inputId) {
@@ -745,234 +880,248 @@
             }
         }
 
-        function addQuickAmount(amount) {
-            const inputEl = document.getElementById('txAmountInput');
-            const current = parseFormattedNumber(inputEl.value);
-            inputEl.value = formatCurrencyMBanking(roundCurrency(current + amount), true);
-        }
-
-        // =====================================================================
-        // 2. PENYIMPANAN LOCALSTORAGE & DATA SIMULASI AWAL
-        // =====================================================================
+        // ==================== PENYIMPANAN LOCALSTORAGE ====================
         function saveState() {
             try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    balances: state.balances,
+                    transactions: state.transactions,
+                    hideBalance: state.hideBalance
+                }));
             } catch (e) {
-                console.error('Gagal menyimpan ke LocalStorage:', e);
+                showToast('Gagal menyimpan data ke browser.', 'error');
             }
         }
 
         function loadState() {
             try {
-                const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    appState = {
-                        wallets: parsed.wallets || { cash: 0, ewallet: 0, bank: 0 },
-                        transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
-                        hideBalance: Boolean(parsed.hideBalance),
-                        filterType: 'all'
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    state.balances = {
+                        cash: roundCurrency(data.balances?.cash ?? 0),
+                        ewallet: roundCurrency(data.balances?.ewallet ?? 0),
+                        bank: roundCurrency(data.balances?.bank ?? 0)
                     };
+                    state.transactions = Array.isArray(data.transactions) ? data.transactions : [];
+                    state.hideBalance = Boolean(data.hideBalance);
                 } else {
-                    // Inisialisasi data contoh menarik saat pertama kali dibuka
-                    initDefaultDemoState();
+                    // Seed data awal yang informatif untuk pertama kali dibuka
+                    const today = getTodayDateStr();
+                    state.balances = {
+                        cash: 350000.00,
+                        ewallet: 425500.50,
+                        bank: 6849415.71
+                    };
+                    state.transactions = [
+                        {
+                            id: 'tx_init_1',
+                            type: 'income',
+                            amount: 7500000.00,
+                            wallet: 'bank',
+                            category: 'Gaji',
+                            date: today,
+                            note: 'Gaji Bulanan Utama'
+                        },
+                        {
+                            id: 'tx_init_2',
+                            type: 'expense',
+                            amount: 45500.25,
+                            wallet: 'ewallet',
+                            category: 'Makanan & Minuman',
+                            date: today,
+                            note: 'Makan Siang & Kopi'
+                        },
+                        {
+                            id: 'tx_init_3',
+                            type: 'expense',
+                            amount: 120000.00,
+                            wallet: 'cash',
+                            category: 'Transportasi',
+                            date: today,
+                            note: 'Isi Bensin Kendaraan'
+                        }
+                    ];
                     saveState();
                 }
             } catch (e) {
-                initDefaultDemoState();
+                console.error('Error memuat state:', e);
             }
         }
 
-        function initDefaultDemoState() {
-            const today = new Date().toISOString().split('T')[0];
-            const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-
-            appState.wallets = {
-                cash: 450000.00,
-                ewallet: 825500.50,
-                bank: 6849415.71
-            };
-
-            appState.transactions = [
-                {
-                    id: 'tx_' + (Date.now() - 100000),
-                    type: 'income',
-                    amount: 7500000.00,
-                    wallet: 'bank',
-                    category: 'Gaji',
-                    note: 'Gaji Bulanan Utama',
-                    date: yesterday
-                },
-                {
-                    id: 'tx_' + (Date.now() - 80000),
-                    type: 'expense',
-                    amount: 45500.25,
-                    wallet: 'ewallet',
-                    category: 'Makan & Minum',
-                    note: 'Kopi Susu & Makan Siang',
-                    date: today
-                },
-                {
-                    id: 'tx_' + (Date.now() - 50000),
-                    type: 'expense',
-                    amount: 120000.00,
-                    wallet: 'cash',
-                    category: 'Transportasi',
-                    note: 'Isi Bensin Pertamax',
-                    date: today
-                },
-                {
-                    id: 'tx_' + (Date.now() - 20000),
-                    type: 'expense',
-                    amount: 350000.00,
-                    wallet: 'bank',
-                    category: 'Tagihan',
-                    note: 'Tagihan Internet & Listrik',
-                    date: today
-                }
-            ];
-        }
-
-        function loadDemoData() {
-            initDefaultDemoState();
-            saveState();
-            closeModal('manageWalletsModal');
-            renderApp();
-            showToast('Data simulasi berhasil dimuat!', 'success');
-        }
-
-        // =====================================================================
-        // 3. RENDERING UI & VISUALISASI
-        // =====================================================================
-        function renderApp() {
-            // Set label periode bulan berjalan
+        function getTodayDateStr() {
             const now = new Date();
-            const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-            document.getElementById('currentPeriodBadge').textContent = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
-            // Hitung Total Saldo dengan pembulatan presisi 2 desimal
-            const totalBalance = roundCurrency(
-                (appState.wallets.cash || 0) +
-                (appState.wallets.ewallet || 0) +
-                (appState.wallets.bank || 0)
-            );
-            const maskText = '••••••••••';
-
-            document.getElementById('totalNetBalance').textContent = appState.hideBalance ? maskText : formatNumberID(totalBalance);
-            document.getElementById('walletBalance_cash').textContent = appState.hideBalance ? 'Rp ••••••••' : `Rp ${formatNumberID(appState.wallets.cash)}`;
-            document.getElementById('walletBalance_ewallet').textContent = appState.hideBalance ? 'Rp ••••••••' : `Rp ${formatNumberID(appState.wallets.ewallet)}`;
-            document.getElementById('walletBalance_bank').textContent = appState.hideBalance ? 'Rp ••••••••' : `Rp ${formatNumberID(appState.wallets.bank)}`;
-
-            // Update ikon mata
-            const eyeBtn = document.getElementById('btnToggleEye');
-            eyeBtn.innerHTML = appState.hideBalance
-                ? '<i data-lucide="eye-off" class="w-4 h-4"></i>'
-                : '<i data-lucide="eye" class="w-4 h-4"></i>';
-
-            // Hitung Total Pemasukan & Pengeluaran dari Riwayat Transaksi
-            let totalIncome = 0;
-            let totalExpense = 0;
-            const expenseByCategory = {};
-
-            appState.transactions.forEach(tx => {
-                if (tx.type === 'income') {
-                    totalIncome = roundCurrency(totalIncome + tx.amount);
-                } else if (tx.type === 'expense') {
-                    totalExpense = roundCurrency(totalExpense + tx.amount);
-                    expenseByCategory[tx.category] = roundCurrency((expenseByCategory[tx.category] || 0) + tx.amount);
-                }
-            });
-
-            document.getElementById('totalIncomeDisplay').textContent = appState.hideBalance ? 'Rp ••••••••' : `Rp ${formatNumberID(totalIncome)}`;
-            document.getElementById('totalExpenseDisplay').textContent = appState.hideBalance ? 'Rp ••••••••' : `Rp ${formatNumberID(totalExpense)}`;
-
-            renderExpenseBreakdown(totalIncome, totalExpense, expenseByCategory);
-            renderTransactionList();
-
-            // Refresh semua ikon Lucide
+        // ==================== DARK MODE ====================
+        function toggleDarkMode() {
+            const htmlEl = document.documentElement;
+            const isDark = htmlEl.classList.toggle('dark');
+            try {
+                localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+            } catch (e) {}
             lucide.createIcons();
         }
 
-        function renderExpenseBreakdown(totalIncome, totalExpense, expenseByCategory) {
-            const barEl = document.getElementById('categoryStackedBar');
-            const legendEl = document.getElementById('categoryLegendList');
-            const ratioBadge = document.getElementById('expenseRatioBadge');
-
-            if (totalIncome > 0) {
-                const ratio = Math.round((totalExpense / totalIncome) * 100);
-                ratioBadge.textContent = `${ratio}% dari Pemasukan`;
-            } else {
-                ratioBadge.textContent = totalExpense > 0 ? '100% Pengeluaran' : 'Belum ada data';
-            }
-
-            if (totalExpense === 0) {
-                barEl.innerHTML = `<div class="w-full h-full bg-slate-100"></div>`;
-                legendEl.innerHTML = `<p class="text-xs text-slate-400 col-span-2 py-2 text-center">Belum ada catatan pengeluaran untuk dianalisis.</p>`;
-                return;
-            }
-
-            // Urutkan kategori dari pengeluaran terbesar
-            const sortedCats = Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]);
-            let barHtml = '';
-            let legendHtml = '';
-
-            sortedCats.forEach(([catName, amount]) => {
-                const pct = Math.max(2, Math.round((amount / totalExpense) * 100));
-                const meta = CATEGORIES.expense.find(c => c.name === catName) || CATEGORIES.expense[CATEGORIES.expense.length - 1];
-
-                barHtml += `<div style="width: ${pct}%" class="${meta.color} h-full transition-all duration-500" title="${catName}: ${pct}%"></div>`;
-
-                legendHtml += `
-                    <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50/80 border border-slate-100">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-2.5 h-2.5 rounded-full ${meta.color} shrink-0"></span>
-                            <span class="text-xs font-semibold text-slate-700 truncate">${catName}</span>
-                        </div>
-                        <div class="text-right shrink-0 ml-2">
-                            <span class="text-xs font-bold text-slate-900 tabular-nums">Rp ${formatNumberID(amount)}</span>
-                            <span class="text-[10px] font-semibold text-slate-400 ml-1">(${pct}%)</span>
-                        </div>
-                    </div>
-                `;
-            });
-
-            barEl.innerHTML = barHtml;
-            legendEl.innerHTML = legendHtml;
+        // ==================== RENDER UI ====================
+        function renderAll() {
+            renderBalances();
+            renderMonthlyStatsAndChart();
+            renderTransactions();
+            lucide.createIcons();
         }
 
-        function renderTransactionList() {
-            const listEl = document.getElementById('transactionList');
-            const walletFilter = document.getElementById('filterWallet').value;
-            const typeFilter = appState.filterType;
+        function renderBalances() {
+            const total = roundCurrency(
+                state.balances.cash + state.balances.ewallet + state.balances.bank
+            );
 
-            // Update styling tab filter
-            ['all', 'income', 'expense'].forEach(t => {
-                const tabBtn = document.getElementById(`tabType_${t}`);
-                if (t === typeFilter) {
-                    tabBtn.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-900 text-white';
-                } else {
-                    tabBtn.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200';
+            const mask = 'Rp ••••••••';
+            document.getElementById('totalBalanceDisplay').textContent = state.hideBalance
+                ? mask
+                : `Rp ${formatMBanking(total)}`;
+
+            document.getElementById('walletBalance_cash').textContent = state.hideBalance
+                ? mask
+                : `Rp ${formatMBanking(state.balances.cash)}`;
+
+            document.getElementById('walletBalance_ewallet').textContent = state.hideBalance
+                ? mask
+                : `Rp ${formatMBanking(state.balances.ewallet)}`;
+
+            document.getElementById('walletBalance_bank').textContent = state.hideBalance
+                ? mask
+                : `Rp ${formatMBanking(state.balances.bank)}`;
+
+            // Ikon Mata Show/Hide
+            const eyeShow = document.getElementById('eyeIconShow');
+            const eyeHide = document.getElementById('eyeIconHide');
+            if (state.hideBalance) {
+                eyeShow.classList.add('hidden');
+                eyeHide.classList.remove('hidden');
+            } else {
+                eyeShow.classList.remove('hidden');
+                eyeHide.classList.add('hidden');
+            }
+        }
+
+        function toggleHideBalance() {
+            state.hideBalance = !state.hideBalance;
+            saveState();
+            renderBalances();
+            renderMonthlyStatsAndChart();
+        }
+
+        function renderMonthlyStatsAndChart() {
+            const now = new Date();
+            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            document.getElementById('currentMonthLabel').textContent = `Proporsi kategori ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+
+            let monthlyIncome = 0;
+            let monthlyExpense = 0;
+            const expenseByCategory = {};
+
+            state.transactions.forEach(tx => {
+                if (tx.date && tx.date.startsWith(currentYearMonth)) {
+                    if (tx.type === 'income') {
+                        monthlyIncome = roundCurrency(monthlyIncome + tx.amount);
+                    } else if (tx.type === 'expense') {
+                        monthlyExpense = roundCurrency(monthlyExpense + tx.amount);
+                        expenseByCategory[tx.category] = roundCurrency((expenseByCategory[tx.category] || 0) + tx.amount);
+                    }
                 }
             });
 
-            // Filter transaksi
-            const filtered = appState.transactions
-                .filter(tx => (walletFilter === 'all' || tx.wallet === walletFilter))
-                .filter(tx => (typeFilter === 'all' || tx.type === typeFilter))
-                .sort((a, b) => new Date(b.date) - new Date(a.date));
+            const mask = 'Rp ••••••••';
+            document.getElementById('monthlyIncomeDisplay').textContent = state.hideBalance
+                ? mask
+                : `Rp ${formatMBanking(monthlyIncome)}`;
+            document.getElementById('monthlyExpenseDisplay').textContent = state.hideBalance
+                ? mask
+                : `Rp ${formatMBanking(monthlyExpense)}`;
+            document.getElementById('expenseTotalBadge').textContent = state.hideBalance
+                ? mask
+                : `Rp ${formatMBanking(monthlyExpense)}`;
 
-            document.getElementById('transactionCountLabel').textContent = `Menampilkan ${filtered.length} catatan transaksi`;
+            // Render Visual Bar Chart & Legend
+            const barContainer = document.getElementById('expenseStackedBar');
+            const listContainer = document.getElementById('expenseBreakdownList');
 
-            if (filtered.length === 0) {
-                listEl.innerHTML = `
-                    <div class="py-12 text-center">
-                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-                            <i data-lucide="inbox" class="w-6 h-6"></i>
-                        </div>
-                        <p class="text-sm font-bold text-slate-700">Belum ada transaksi</p>
-                        <p class="text-xs text-slate-400 mt-1">Catat pemasukan atau pengeluaran Anda menggunakan tombol di bawah.</p>
+            if (monthlyExpense <= 0) {
+                barContainer.innerHTML = `<div class="w-full h-full bg-slate-200/70 dark:bg-slate-800"></div>`;
+                listContainer.innerHTML = `
+                    <div class="text-center py-6 text-xs text-slate-400 dark:text-slate-500">
+                        Belum ada pengeluaran tercatat pada bulan ini.
                     </div>
                 `;
+                return;
+            }
+
+            const sortedCategories = Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]);
+
+            let barHtml = '';
+            let listHtml = '';
+
+            sortedCategories.forEach(([catName, amount]) => {
+                const catMeta = CATEGORIES.expense.find(c => c.name === catName) || CATEGORIES.expense[CATEGORIES.expense.length - 1];
+                const percentage = Math.max(1, Math.round((amount / monthlyExpense) * 100));
+
+                barHtml += `<div style="width: ${percentage}%" class="${catMeta.color} h-full transition-all duration-300" title="${catName}: ${percentage}%"></div>`;
+
+                listHtml += `
+                    <div class="flex items-center justify-between text-xs p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="w-3 h-3 rounded-full ${catMeta.color} shrink-0"></span>
+                            <span class="font-semibold text-slate-700 dark:text-slate-200 truncate">${escapeHtml(catName)}</span>
+                            <span class="text-[11px] font-bold text-slate-400 dark:text-slate-500">${percentage}%</span>
+                        </div>
+                        <span class="font-bold font-mono-num text-slate-900 dark:text-white shrink-0 ml-2">
+                            ${state.hideBalance ? 'Rp ••••••' : `Rp ${formatMBanking(amount)}`}
+                        </span>
+                    </div>
+                `;
+            });
+
+            barContainer.innerHTML = barHtml;
+            listContainer.innerHTML = listHtml;
+        }
+
+        function renderTransactions() {
+            const walletFilter = document.getElementById('filterWallet').value;
+            const searchQuery = document.getElementById('searchTxInput').value.trim().toLowerCase();
+            const typeFilter = state.historyTypeFilter;
+
+            const filtered = state.transactions.filter(tx => {
+                const matchWallet = walletFilter === 'all' || tx.wallet === walletFilter;
+                const matchType = typeFilter === 'all' || tx.type === typeFilter;
+                const matchSearch = !searchQuery ||
+                    (tx.note && tx.note.toLowerCase().includes(searchQuery)) ||
+                    (tx.category && tx.category.toLowerCase().includes(searchQuery));
+                return matchWallet && matchType && matchSearch;
+            });
+
+            // Urutkan terbaru ke terlama
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            document.getElementById('txCountLabel').textContent = `${filtered.length} transaksi ditampilkan`;
+
+            const listEl = document.getElementById('transactionList');
+            if (filtered.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-10 px-4">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                            <i data-lucide="inbox" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-sm font-bold text-slate-700 dark:text-slate-300">Tidak ada transaksi ditemukan</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Catat transaksi baru atau ubah filter pencarian Anda.</p>
+                    </div>
+                `;
+                lucide.createIcons();
                 return;
             }
 
@@ -980,262 +1129,297 @@
                 const isIncome = tx.type === 'income';
                 const catList = isIncome ? CATEGORIES.income : CATEGORIES.expense;
                 const catMeta = catList.find(c => c.name === tx.category) || catList[catList.length - 1];
-                const walletMeta = WALLET_META[tx.wallet] || WALLET_META.cash;
-
-                // Format tanggal Indonesia
-                const dateObj = new Date(tx.date + 'T00:00:00');
-                const formattedDate = isNaN(dateObj) ? tx.date : dateObj.toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                });
+                const walletMeta = WALLET_INFO[tx.wallet] || WALLET_INFO.cash;
+                const formattedDate = formatDateID(tx.date);
 
                 return `
-                    <div class="py-3.5 flex items-center justify-between gap-3 group hover:bg-slate-50/70 -mx-2 px-2 rounded-2xl transition">
+                    <div class="group flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-50/80 hover:bg-slate-100/80 dark:bg-slate-800/45 dark:hover:bg-slate-800/80 border border-slate-200/60 dark:border-slate-800 transition">
                         <div class="flex items-center gap-3 min-w-0">
-                            <div class="w-10 h-10 rounded-xl ${catMeta.bgSoft} ${catMeta.text} flex items-center justify-center shrink-0">
+                            <div class="w-10 h-10 rounded-xl ${isIncome ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/80 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-950/80 dark:text-rose-400'} flex items-center justify-center shrink-0">
                                 <i data-lucide="${catMeta.icon}" class="w-5 h-5"></i>
                             </div>
                             <div class="min-w-0">
-                                <p class="text-sm font-bold text-slate-900 truncate">${escapeHtml(tx.note)}</p>
+                                <p class="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                    ${escapeHtml(tx.note || tx.category)}
+                                </p>
                                 <div class="flex flex-wrap items-center gap-1.5 mt-1">
-                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${walletMeta.badgeClass}">
-                                        ${walletMeta.label}
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${walletMeta.badgeClass}">
+                                        ${walletMeta.short}
                                     </span>
-                                    <span class="text-[11px] font-medium text-slate-500">${tx.category}</span>
-                                    <span class="text-slate-300">•</span>
-                                    <span class="text-[11px] text-slate-400">${formattedDate}</span>
+                                    <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                        ${escapeHtml(tx.category)}
+                                    </span>
+                                    <span class="text-slate-300 dark:text-slate-600">&bull;</span>
+                                    <span class="text-[11px] text-slate-400 dark:text-slate-500">
+                                        ${formattedDate}
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="flex items-center gap-2 shrink-0">
-                            <span class="text-sm font-extrabold tabular-nums ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
-                                ${isIncome ? '+' : '-'}Rp ${formatNumberID(tx.amount)}
+                            <span class="text-xs sm:text-sm font-extrabold font-mono-num ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">
+                                ${isIncome ? '+' : '-'}Rp ${formatMBanking(tx.amount)}
                             </span>
-                            <button onclick="confirmDeleteTransaction('${tx.id}')" class="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Hapus & Kembalikan Saldo">
+                            <button type="button" onclick="confirmDeleteTransaction('${tx.id}')"
+                                class="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-950/60 transition"
+                                title="Hapus Transaksi & Kembalikan Saldo">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>
                     </div>
                 `;
             }).join('');
+
+            lucide.createIcons();
         }
 
-        // =====================================================================
-        // 4. INTERAKSI TRANSAKSI (TAMBAH & HAPUS DENGAN SINKRONISASI SALDO)
-        // =====================================================================
-        function openTransactionModal(defaultType = 'expense') {
-            document.getElementById('transactionForm').reset();
-            document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
-            selectTxType(defaultType);
-            openModal('transactionModal');
-            setTimeout(() => document.getElementById('txAmountInput').focus(), 150);
-        }
-
-        function selectTxType(type) {
-            document.getElementById('txType').value = type;
+        // ==================== FORM TRANSAKSI ====================
+        function setTransactionType(type) {
+            state.currentTxType = type;
             const btnExpense = document.getElementById('btnTypeExpense');
             const btnIncome = document.getElementById('btnTypeIncome');
-            const catSelect = document.getElementById('txCategory');
 
             if (type === 'expense') {
-                btnExpense.className = 'py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white text-rose-600 shadow-xs';
-                btnIncome.className = 'py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-600';
+                btnExpense.className = 'py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all bg-rose-600 text-white shadow-sm';
+                btnIncome.className = 'py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white';
             } else {
-                btnIncome.className = 'py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white text-emerald-600 shadow-xs';
-                btnExpense.className = 'py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-600';
+                btnIncome.className = 'py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all bg-emerald-600 text-white shadow-sm';
+                btnExpense.className = 'py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white';
             }
 
-            // Isi dropdown kategori sesuai tipe
-            catSelect.innerHTML = CATEGORIES[type].map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            populateCategoryOptions();
         }
 
-        function handleSaveTransaction(e) {
-            e.preventDefault();
-            const type = document.getElementById('txType').value;
-            const amount = parseFormattedNumber(document.getElementById('txAmountInput').value);
-            const wallet = document.querySelector('input[name="txWallet"]:checked').value;
-            const category = document.getElementById('txCategory').value;
-            const date = document.getElementById('txDate').value;
-            const note = document.getElementById('txNote').value.trim();
+        function populateCategoryOptions() {
+            const selectEl = document.getElementById('txCategory');
+            const list = CATEGORIES[state.currentTxType] || [];
+            selectEl.innerHTML = list.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('');
+        }
+
+        function handleAddTransaction(event) {
+            event.preventDefault();
+
+            const amountInput = document.getElementById('txAmount');
+            const amount = parseMBanking(amountInput.value);
 
             if (amount <= 0) {
-                showToast('Nominal transaksi harus lebih dari Rp 0.00', 'error');
+                showToast('Masukkan nominal transaksi lebih dari 0.00', 'error');
+                amountInput.focus();
                 return;
             }
 
-            // Update saldo dompet terpilih dengan aritmetika desimal akurat
+            const wallet = document.querySelector('input[name="txWallet"]:checked')?.value || 'cash';
+            const category = document.getElementById('txCategory').value;
+            const date = document.getElementById('txDate').value || getTodayDateStr();
+            const note = document.getElementById('txNote').value.trim() || category;
+            const type = state.currentTxType;
+
+            // Update saldo akun secara presisi 2 desimal
             if (type === 'income') {
-                appState.wallets[wallet] = roundCurrency((appState.wallets[wallet] || 0) + amount);
+                state.balances[wallet] = roundCurrency(state.balances[wallet] + amount);
             } else {
-                appState.wallets[wallet] = roundCurrency((appState.wallets[wallet] || 0) - amount);
+                state.balances[wallet] = roundCurrency(state.balances[wallet] - amount);
             }
 
-            // Tambahkan transaksi ke riwayat
-            appState.transactions.unshift({
-                id: 'tx_' + Date.now(),
+            const newTx = {
+                id: 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
                 type,
                 amount,
                 wallet,
                 category,
-                note: note || category,
-                date
-            });
+                date,
+                note
+            };
 
+            state.transactions.unshift(newTx);
             saveState();
-            closeModal('transactionModal');
-            renderApp();
-            showToast(`${type === 'income' ? 'Pemasukan' : 'Pengeluaran'} Rp ${formatNumberID(amount)} dicatat!`, 'success');
+            renderAll();
+
+            // Reset input form
+            amountInput.value = '';
+            document.getElementById('txNote').value = '';
+            document.getElementById('txDate').value = getTodayDateStr();
+
+            showToast(
+                `${type === 'income' ? 'Pemasukan' : 'Pengeluaran'} Rp ${formatMBanking(amount)} berhasil dicatat!`,
+                'success'
+            );
         }
 
         function confirmDeleteTransaction(txId) {
-            const tx = appState.transactions.find(t => t.id === txId);
+            const tx = state.transactions.find(item => item.id === txId);
             if (!tx) return;
 
-            showConfirmDialog(
+            openConfirmModal(
                 'Hapus Transaksi?',
-                `Transaksi "${tx.note}" sebesar Rp ${formatNumberID(tx.amount)} akan dihapus dan saldo ${WALLET_META[tx.wallet].label} akan dikembalikan otomatis.`,
+                `Transaksi "${tx.note}" sebesar Rp ${formatMBanking(tx.amount)} akan dihapus dan saldo ${WALLET_INFO[tx.wallet]?.name || 'akun'} akan dikembalikan otomatis.`,
                 () => {
-                    // Kembalikan dampak transaksi ke saldo akun secara presisi
                     if (tx.type === 'income') {
-                        appState.wallets[tx.wallet] = roundCurrency(appState.wallets[tx.wallet] - tx.amount);
+                        state.balances[tx.wallet] = roundCurrency(state.balances[tx.wallet] - tx.amount);
                     } else {
-                        appState.wallets[tx.wallet] = roundCurrency(appState.wallets[tx.wallet] + tx.amount);
+                        state.balances[tx.wallet] = roundCurrency(state.balances[tx.wallet] + tx.amount);
                     }
-                    appState.transactions = appState.transactions.filter(t => t.id !== txId);
+                    state.transactions = state.transactions.filter(item => item.id !== txId);
                     saveState();
-                    renderApp();
-                    showToast('Transaksi dihapus & saldo disesuaikan', 'success');
+                    renderAll();
+                    showToast('Transaksi dihapus & saldo dikembalikan.', 'info');
                 }
             );
         }
 
-        // =====================================================================
-        // 5. PENGATURAN & RESET SALDO (PER DOMPET & KESELURUHAN)
-        // =====================================================================
-        function openManageWalletsModal() {
-            document.getElementById('editWallet_cash').value = formatNumberID(appState.wallets.cash);
-            document.getElementById('editWallet_ewallet').value = formatNumberID(appState.wallets.ewallet);
-            document.getElementById('editWallet_bank').value = formatNumberID(appState.wallets.bank);
-            openModal('manageWalletsModal');
+        function setHistoryTypeFilter(type) {
+            state.historyTypeFilter = type;
+            ['all', 'income', 'expense'].forEach(key => {
+                const btn = document.getElementById(`filterType_${key}`);
+                if (key === type) {
+                    btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs';
+                } else {
+                    btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+                }
+            });
+            renderTransactions();
         }
 
-        function handleSaveAllWallets(e) {
-            e.preventDefault();
-            appState.wallets.cash = parseFormattedNumber(document.getElementById('editWallet_cash').value);
-            appState.wallets.ewallet = parseFormattedNumber(document.getElementById('editWallet_ewallet').value);
-            appState.wallets.bank = parseFormattedNumber(document.getElementById('editWallet_bank').value);
+        // ==================== MODAL ATUR & RESET SALDO ====================
+        function openBalanceModal(focusWallet = null) {
+            document.getElementById('inputBalance_cash').value = formatMBanking(state.balances.cash);
+            document.getElementById('inputBalance_ewallet').value = formatMBanking(state.balances.ewallet);
+            document.getElementById('inputBalance_bank').value = formatMBanking(state.balances.bank);
+
+            const modal = document.getElementById('balanceModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+
+            if (focusWallet) {
+                setTimeout(() => {
+                    const targetInput = document.getElementById(`inputBalance_${focusWallet}`);
+                    if (targetInput) {
+                        targetInput.focus();
+                        targetInput.select();
+                    }
+                }, 60);
+            }
+        }
+
+        function closeBalanceModal() {
+            const modal = document.getElementById('balanceModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function handleSaveBalances(event) {
+            event.preventDefault();
+            state.balances.cash = parseMBanking(document.getElementById('inputBalance_cash').value);
+            state.balances.ewallet = parseMBanking(document.getElementById('inputBalance_ewallet').value);
+            state.balances.bank = parseMBanking(document.getElementById('inputBalance_bank').value);
 
             saveState();
-            closeModal('manageWalletsModal');
-            renderApp();
-            showToast('Saldo semua dompet berhasil diperbarui!', 'success');
+            renderAll();
+            closeBalanceModal();
+            showToast('Saldo seluruh akun berhasil diperbarui!', 'success');
         }
 
-        function openSingleWalletEdit(walletKey) {
-            const meta = WALLET_META[walletKey];
-            document.getElementById('singleWalletKey').value = walletKey;
-            document.getElementById('singleWalletModalTitle').textContent = `Atur Saldo ${meta.label}`;
-            document.getElementById('singleWalletAmountInput').value = formatNumberID(appState.wallets[walletKey]);
-            openModal('singleWalletModal');
-            setTimeout(() => document.getElementById('singleWalletAmountInput').focus(), 150);
-        }
-
-        function handleSaveSingleWallet(e) {
-            e.preventDefault();
-            const key = document.getElementById('singleWalletKey').value;
-            const newAmount = parseFormattedNumber(document.getElementById('singleWalletAmountInput').value);
-            appState.wallets[key] = newAmount;
-
-            saveState();
-            closeModal('singleWalletModal');
-            renderApp();
-            showToast(`Saldo ${WALLET_META[key].label} diperbarui menjadi Rp ${formatNumberID(newAmount)}`, 'success');
-        }
-
-        function confirmResetSingleWallet(walletKey) {
-            const meta = WALLET_META[walletKey];
-            showConfirmDialog(
-                `Reset Saldo ${meta.label}?`,
-                `Saldo pada akun ${meta.label} akan diatur ulang menjadi Rp 0.00. Riwayat transaksi tetap tersimpan.`,
+        function confirmSingleWalletReset(walletKey) {
+            const walletName = WALLET_INFO[walletKey]?.name || 'Akun';
+            openConfirmModal(
+                `Reset Saldo ${walletName}?`,
+                `Saldo ${walletName} akan diatur ulang menjadi Rp 0.00. Riwayat transaksi tetap tersimpan.`,
                 () => {
-                    appState.wallets[walletKey] = 0;
+                    state.balances[walletKey] = 0.00;
                     saveState();
-                    renderApp();
-                    showToast(`Saldo ${meta.label} telah direset ke Rp 0.00`, 'success');
+                    renderAll();
+                    showToast(`Saldo ${walletName} berhasil direset ke Rp 0.00`, 'info');
                 }
             );
         }
 
         function confirmFullReset() {
-            closeModal('manageWalletsModal');
-            showConfirmDialog(
-                'Reset Seluruh Data SmartKas?',
-                'Semua saldo (Tunai, Dompet Digital, Rekening Bank) dan seluruh riwayat transaksi akan dihapus permanen menjadi Rp 0.00.',
+            openConfirmModal(
+                'Full Reset Semua Data?',
+                'Seluruh saldo (Tunai, Dompet Digital, Rekening Bank) dan seluruh riwayat transaksi akan dihapus permanen menjadi Rp 0.00.',
                 () => {
-                    appState.wallets = { cash: 0, ewallet: 0, bank: 0 };
-                    appState.transactions = [];
+                    state.balances = { cash: 0.00, ewallet: 0.00, bank: 0.00 };
+                    state.transactions = [];
                     saveState();
-                    renderApp();
-                    showToast('Seluruh saldo & riwayat berhasil direset ke nol!', 'success');
+                    renderAll();
+                    closeBalanceModal();
+                    showToast('Semua saldo & riwayat transaksi telah direset ke 0.00.', 'info');
                 }
             );
         }
 
-        // =====================================================================
-        // 5B. BACKUP EXPORT & IMPORT JSON (PRAKTIS UNTUK GITHUB PAGES)
-        // =====================================================================
+        // ==================== MODAL BACKUP & RESTORE JSON ====================
         function openBackupModal() {
-            openModal('backupModal');
+            const modal = document.getElementById('backupModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
         }
 
-        function exportBackupJSON() {
+        function closeBackupModal() {
+            const modal = document.getElementById('backupModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function exportDataJSON() {
             const payload = {
                 app: 'SmartKas',
+                version: '2.0',
                 exportedAt: new Date().toISOString(),
-                data: appState
+                balances: state.balances,
+                transactions: state.transactions
             };
+
             const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            const dateStr = new Date().toISOString().split('T')[0];
             a.href = url;
-            a.download = `SmartKas-Backup-${dateStr}.json`;
+            a.download = `SmartKas_Backup_${getTodayDateStr()}.json`;
             document.body.appendChild(a);
             a.click();
-            a.remove();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
+
             showToast('File backup JSON berhasil diunduh!', 'success');
         }
 
-        function importBackupJSON(event) {
+        function handleImportJSON(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const parsed = JSON.parse(e.target.result);
-                    const importedData = parsed.data || parsed;
-                    if (!importedData.wallets || !Array.isArray(importedData.transactions)) {
-                        throw new Error('Format file tidak valid');
+                    if (!parsed || typeof parsed.balances !== 'object' || !Array.isArray(parsed.transactions)) {
+                        throw new Error('Struktur file JSON tidak valid.');
                     }
-                    appState.wallets = {
-                        cash: roundCurrency(importedData.wallets.cash || 0),
-                        ewallet: roundCurrency(importedData.wallets.ewallet || 0),
-                        bank: roundCurrency(importedData.wallets.bank || 0)
+
+                    state.balances = {
+                        cash: roundCurrency(parsed.balances.cash ?? 0),
+                        ewallet: roundCurrency(parsed.balances.ewallet ?? 0),
+                        bank: roundCurrency(parsed.balances.bank ?? 0)
                     };
-                    appState.transactions = importedData.transactions.map(tx => ({
-                        ...tx,
-                        amount: roundCurrency(tx.amount || 0)
+
+                    state.transactions = parsed.transactions.map(tx => ({
+                        id: tx.id || ('tx_' + Date.now() + Math.random()),
+                        type: tx.type === 'income' ? 'income' : 'expense',
+                        amount: roundCurrency(tx.amount ?? 0),
+                        wallet: ['cash', 'ewallet', 'bank'].includes(tx.wallet) ? tx.wallet : 'cash',
+                        category: String(tx.category || 'Lainnya'),
+                        date: String(tx.date || getTodayDateStr()),
+                        note: String(tx.note || '')
                     }));
+
                     saveState();
-                    closeModal('backupModal');
-                    renderApp();
-                    showToast('Data backup berhasil dipulihkan!', 'success');
+                    renderAll();
+                    closeBackupModal();
+                    showToast('Data berhasil dipulihkan dari file backup!', 'success');
                 } catch (err) {
-                    showToast('Gagal membaca file backup JSON', 'error');
+                    showToast('File backup tidak valid atau rusak.', 'error');
                 } finally {
                     event.target.value = '';
                 }
@@ -1243,89 +1427,99 @@
             reader.readAsText(file);
         }
 
-        // =====================================================================
-        // 6. KONTROL UI (MODAL, FILTER, TOAST, PRIVASI SALDO)
-        // =====================================================================
-        function toggleHideBalance() {
-            appState.hideBalance = !appState.hideBalance;
-            saveState();
-            renderApp();
-        }
+        // ==================== MODAL KONFIRMASI KUSTOM ====================
+        function openConfirmModal(title, message, onProceed) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            confirmCallback = onProceed;
 
-        function setTypeFilter(type) {
-            appState.filterType = type;
-            renderApp();
-        }
-
-        function openModal(id) {
-            const modal = document.getElementById(id);
+            const modal = document.getElementById('confirmModal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             lucide.createIcons();
         }
 
-        function closeModal(id) {
-            const modal = document.getElementById(id);
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirmModal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+            confirmCallback = null;
         }
 
-        function showConfirmDialog(title, message, onConfirmCallback) {
-            document.getElementById('confirmTitle').textContent = title;
-            document.getElementById('confirmMessage').textContent = message;
-            const actionBtn = document.getElementById('confirmActionBtn');
+        document.getElementById('confirmProceedBtn').addEventListener('click', () => {
+            if (typeof confirmCallback === 'function') {
+                confirmCallback();
+            }
+            closeConfirmModal();
+        });
 
-            // Ganti event listener tombol konfirmasi
-            const newBtn = actionBtn.cloneNode(true);
-            actionBtn.parentNode.replaceChild(newBtn, actionBtn);
-
-            newBtn.addEventListener('click', () => {
-                closeModal('confirmModal');
-                onConfirmCallback();
+        // Tutup modal saat klik backdrop luar
+        ['balanceModal', 'backupModal', 'confirmModal'].forEach(modalId => {
+            document.getElementById(modalId).addEventListener('click', (e) => {
+                if (e.target.id === modalId) {
+                    if (modalId === 'balanceModal') closeBalanceModal();
+                    if (modalId === 'backupModal') closeBackupModal();
+                    if (modalId === 'confirmModal') closeConfirmModal();
+                }
             });
+        });
 
-            openModal('confirmModal');
-        }
-
+        // ==================== TOAST NOTIFICATION ====================
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
-            const bgClass = type === 'error' ? 'bg-rose-600' : 'bg-slate-900';
-            const iconName = type === 'error' ? 'alert-circle' : 'check-circle-2';
-            const iconColor = type === 'error' ? 'text-rose-200' : 'text-emerald-400';
-
             const toast = document.createElement('div');
-            toast.className = `${bgClass} text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold animate-slide-up`;
-            toast.innerHTML = `<i data-lucide="${iconName}" class="w-4 h-4 ${iconColor} shrink-0"></i><span>${escapeHtml(message)}</span>`;
 
-            container.innerHTML = '';
+            const styles = {
+                success: 'bg-emerald-600 text-white border-emerald-500',
+                error: 'bg-rose-600 text-white border-rose-500',
+                info: 'bg-slate-800 dark:bg-slate-700 text-white border-slate-700'
+            };
+
+            const icons = {
+                success: 'check-circle-2',
+                error: 'alert-circle',
+                info: 'info'
+            };
+
+            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl border shadow-xl text-xs sm:text-sm font-semibold animate-toast ${styles[type] || styles.info}`;
+            toast.innerHTML = `
+                <i data-lucide="${icons[type] || 'info'}" class="w-4 h-4 shrink-0"></i>
+                <span>${escapeHtml(message)}</span>
+            `;
+
             container.appendChild(toast);
             lucide.createIcons();
 
             setTimeout(() => {
                 toast.style.opacity = '0';
-                toast.style.transition = 'opacity 0.25s ease';
-                setTimeout(() => toast.remove(), 250);
-            }, 2800);
+                toast.style.transform = 'translateY(8px)';
+                toast.style.transition = 'all 0.2s ease';
+                setTimeout(() => toast.remove(), 220);
+            }, 3000);
         }
 
-        function escapeHtml(str) {
+        // ==================== HELPERS ====================
+        function formatDateID(dateStr) {
+            if (!dateStr) return '-';
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const mIdx = parseInt(parts[1], 10) - 1;
+            return `${parseInt(parts[2], 10)} ${months[mIdx] || parts[1]} ${parts[0]}`;
+        }
+
+        function escapeHtml(text) {
             const div = document.createElement('div');
-            div.textContent = str;
+            div.textContent = text;
             return div.innerHTML;
         }
 
-        // Tutup modal saat klik area backdrop luar
-        window.addEventListener('click', (e) => {
-            ['transactionModal', 'manageWalletsModal', 'singleWalletModal', 'confirmModal', 'backupModal'].forEach(id => {
-                const modal = document.getElementById(id);
-                if (e.target === modal) closeModal(id);
-            });
-        });
-
-        // Inisialisasi saat halaman siap
-        window.addEventListener('DOMContentLoaded', () => {
+        // ==================== INISIALISASI APLIKASI ====================
+        document.addEventListener('DOMContentLoaded', () => {
             loadState();
-            renderApp();
+            document.getElementById('txDate').value = getTodayDateStr();
+            populateCategoryOptions();
+            renderAll();
         });
     </script>
 </body>
